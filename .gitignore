@@ -211,6 +211,7 @@ tmp/
 temp/
 .tmp/
 .temp/
+99_归档/
 
 *.tmp
 *.temp

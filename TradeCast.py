@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 import os
+import sys
 import re
 import json
 import shutil
@@ -11,7 +12,7 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-APP_NAME = "TradeCast v1.3.0-20260817"
+APP_NAME = "TradeCast v1.4.0-20260817"
 CONFIG_FILENAME = "TradeCast_config.json"
 
 DEFAULT_OUT_DIR = r""
@@ -19,10 +20,15 @@ DEFAULT_OPEN_DIR = r""
 
 BG = "#F0F0F0"
 PANEL = "#FFFFFF"
-DARK = "#2B2B2B"
+DARK = "#46515C"
 MID = "#666666"
-GHOST = "#EEEEEE"
-BORDER = "#DDDDDD"
+GHOST = "#F7F7F7"
+BORDER = "#D8D8D8"
+SHADOW = "#C9CED3"
+BTN_DARK = "#53606B"
+BTN_DARK_ACTIVE = "#46515C"
+BTN_GHOST = "#FAFAFA"
+BTN_GHOST_ACTIVE = "#EEF1F3"
 
 TYPE1_REQUIRED = {
     "成交日期", "成交时间", "证券代码", "证券名称", "委托类别", "成交价格", "成交数量", "发生金额", "股东代码"
@@ -343,9 +349,26 @@ SECURITY_PREFIX_RULES = sorted(_SECURITY_PREFIX_RULES_RAW,
                                reverse=True)
 
 
+def program_dir():
+    return os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
+
+
 def _config_path():
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        CONFIG_FILENAME)
+    return os.path.join(program_dir(), CONFIG_FILENAME)
+
+
+def clean_path(value):
+    s = str(value or "").strip()
+    pairs = [('"', '"'), ("'", "'"), ("\u201c", "\u201d"), ("\u2018", "\u2019")]
+    changed = True
+    while changed and len(s) >= 2:
+        changed = False
+        for l, r in pairs:
+            if s.startswith(l) and s.endswith(r):
+                s = s[1:-1].strip()
+                changed = True
+                break
+    return os.path.expandvars(os.path.expanduser(s)).replace("/", "\\")
 
 
 def default_config():
@@ -362,10 +385,7 @@ def backup_broken_config(path):
     if os.path.exists(path):
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
-            shutil.copy2(
-                path,
-                os.path.join(os.path.dirname(path),
-                             f"TradeCast_config.broken_{stamp}.json"))
+            shutil.copy2(path, os.path.join(os.path.dirname(path), f"TradeCast_config.broken_{stamp}.json"))
         except Exception:
             pass
 
@@ -384,92 +404,74 @@ def unique_id(base, used):
 def normalize_rule(raw, used_ids):
     raw = raw if isinstance(raw, dict) else {}
     rule = {k: raw.get(k) for k in RULE_FIELDS if k in raw}
-    missing = [
-        k for k in REQUIRED_RULE_FIELDS if not rule.get(k) and k != "enabled"
-    ]
-
     if "enabled" not in rule or not isinstance(rule.get("enabled"), bool):
         rule["enabled"] = False
         rule["invalid_reason"] = "enabled字段非法，已禁用"
+    rule["id"] = unique_id(rule.get("id") or "rule", used_ids)
 
-    rule["id"] = unique_id(str(rule.get("id") or "rule").strip(), used_ids)
-
-    invalid_reasons = [f"缺少{k}" for k in missing]
+    bad = []
+    for k in REQUIRED_RULE_FIELDS:
+        if k != "enabled" and not str(rule.get(k, "")).strip():
+            bad.append(f"缺少{k}")
     if rule.get("source_type") not in VALID_SOURCE_TYPES:
-        invalid_reasons.append("source_type非法")
+        bad.append("source_type非法")
     if rule.get("match_type") not in VALID_MATCH_TYPES:
-        invalid_reasons.append("match_type非法")
-    for k in ("field", "pattern", "output_op"):
-        if not str(rule.get(k, "")).strip():
-            invalid_reasons.append(f"{k}为空")
+        bad.append("match_type非法")
 
-    if invalid_reasons:
+    if bad:
         rule["enabled"] = False
-        rule["invalid_reason"] = "；".join(invalid_reasons)
+        rule["invalid_reason"] = "；".join(bad)
     else:
         rule.pop("invalid_reason", None)
 
-    for opt in ("asset_type", "name_contains", "summary_contains"):
-        if opt in rule and rule[opt] is None:
-            rule.pop(opt, None)
-
+    for k in ("asset_type", "name_contains", "summary_contains"):
+        if not str(rule.get(k, "")).strip():
+            rule.pop(k, None)
     return rule
 
 
 def normalize_config(cfg):
     cfg = cfg if isinstance(cfg, dict) else {}
-    d = default_config()
-    clean = {
-        "config_version": 1,
-        "settings": {},
-        "operation_categories": [],
-        "operation_rules": [],
-        "unknown_policy": {}
-    }
+    clean = default_config()
+    src_settings = cfg.get("settings") if isinstance(cfg.get("settings"), dict) else {}
 
-    settings = cfg.get("settings") if isinstance(cfg.get("settings"),
-                                                 dict) else {}
-    for k, v in d["settings"].items():
-        val = settings.get(k, v)
-        clean["settings"][k] = bool(val) if isinstance(
-            v, bool) else (val if isinstance(val, str) else str(v))
+    for k, dv in DEFAULT_SETTINGS.items():
+        v = src_settings.get(k, dv)
+        if isinstance(dv, bool):
+            clean["settings"][k] = bool(v)
+        elif k in ("out_dir", "last_open_dir"):
+            clean["settings"][k] = clean_path(v)
+        else:
+            clean["settings"][k] = str(v or dv)
 
     cats = cfg.get("operation_categories")
-    if not isinstance(cats, list) or not cats:
-        cats = list(DEFAULT_OPERATION_CATEGORIES)
-
-    seen_cats = set()
+    cats = cats if isinstance(cats, list) else []
+    seen = set()
+    clean["operation_categories"] = []
     for c in cats + DEFAULT_OPERATION_CATEGORIES:
         c = str(c).strip()
-        if c and c not in seen_cats:
-            seen_cats.add(c)
+        if c and c not in seen:
+            seen.add(c)
             clean["operation_categories"].append(c)
 
-    rules = cfg.get("operation_rules") if isinstance(
-        cfg.get("operation_rules"), list) else []
-    used_ids = set()
-    for r in rules:
-        nr = normalize_rule(r, used_ids)
+    used = set()
+    clean["operation_rules"] = []
+    src_rules = cfg.get("operation_rules") if isinstance(cfg.get("operation_rules"), list) else []
+    for r in src_rules:
+        nr = normalize_rule(r, used)
         clean["operation_rules"].append(nr)
         op = nr.get("output_op")
-        if op and op not in clean[
-                "operation_categories"] and op != DEFAULT_UNKNOWN_POLICY[
-                    "unknown_operation_text"]:
+        if op and op not in clean["operation_categories"]:
             clean["operation_categories"].append(op)
 
-    existing_rule_ids = {r.get("id") for r in clean["operation_rules"]}
-    for default_rule in DEFAULT_OPERATION_RULES:
-        if default_rule.get("id") not in existing_rule_ids:
-            nr = normalize_rule(dict(default_rule), used_ids)
-            clean["operation_rules"].append(nr)
-            existing_rule_ids.add(nr.get("id"))
+    ids = {r.get("id") for r in clean["operation_rules"]}
+    for r in DEFAULT_OPERATION_RULES:
+        if r["id"] not in ids:
+            clean["operation_rules"].append(normalize_rule(dict(r), used))
 
-    policy = cfg.get("unknown_policy") if isinstance(cfg.get("unknown_policy"),
-                                                     dict) else {}
-    for k, v in DEFAULT_UNKNOWN_POLICY.items():
-        val = policy.get(k, v)
-        clean["unknown_policy"][k] = val if isinstance(val, str) else str(v)
-
+    src_policy = cfg.get("unknown_policy") if isinstance(cfg.get("unknown_policy"), dict) else {}
+    clean["unknown_policy"] = {k: str(src_policy.get(k, v) or v) for k, v in DEFAULT_UNKNOWN_POLICY.items()}
+    clean["config_version"] = 1
     return clean
 
 
@@ -490,8 +492,7 @@ def load_config():
     except Exception:
         backup_broken_config(path)
         return save_config(default_config())
-    fixed = normalize_config(cfg)
-    return save_config(fixed) if fixed != cfg else fixed
+    return save_config(normalize_config(cfg))
 
 
 def detect_encoding(raw_bytes):
@@ -1384,6 +1385,10 @@ class App(tk.Tk):
     def _save_cfg(self):
         self._cfg = save_config(self._cfg)
 
+    def _set_setting(self, key, value):
+        self._cfg["settings"][key] = value
+        self._save_cfg()
+
     def _apply_config(self):
         settings = self._cfg["settings"]
         self._dir_var.set(settings.get("out_dir") or DEFAULT_OUT_DIR)
@@ -1550,16 +1555,7 @@ class App(tk.Tk):
         self._preview_label.pack(anchor="w", padx=14, pady=(0, 10))
         self._name_var.trace_add("write", lambda *_: self._update_preview())
 
-        tk.Button(right,
-                  text="开始转换  →",
-                  command=self._run,
-                  bg=DARK,
-                  fg="#FFFFFF",
-                  font=("微软雅黑", 11, "bold"),
-                  relief="flat",
-                  cursor="hand2",
-                  activebackground="#444444",
-                  activeforeground="#FFFFFF",
+        self._btn(right, "开始转换  →", self._run, font=("微软雅黑", 11, "bold"),
                   pady=14).pack(fill="x", pady=(14, 0))
         self._btn(right, "规则维护", self._open_rule_manager,
                   True).pack(fill="x", pady=(10, 0))
@@ -1600,20 +1596,25 @@ class App(tk.Tk):
                         highlightbackground=BORDER,
                         highlightthickness=1)
 
-    def _btn(self, parent, text, cmd, ghost=False):
-        kw = dict(font=("微软雅黑", 9),
-                  relief="flat",
-                  cursor="hand2",
-                  padx=10,
-                  pady=4)
-        return tk.Button(parent,
-                         text=text,
-                         command=cmd,
-                         bg=GHOST if ghost else DARK,
-                         fg="#444444" if ghost else "#FFFFFF",
-                         activebackground=BORDER if ghost else "#444444",
-                         activeforeground=DARK if ghost else "#FFFFFF",
-                         **kw)
+    def _btn(self, parent, text, cmd, ghost=False, font=("微软雅黑", 9), pady=4):
+        box = tk.Frame(parent, bg=SHADOW)
+        btn = tk.Button(box,
+                        text=text,
+                        command=cmd,
+                        font=font,
+                        relief="flat",
+                        cursor="hand2",
+                        padx=10,
+                        pady=pady,
+                        bd=0,
+                        highlightthickness=1,
+                        highlightbackground="#FFFFFF" if ghost else "#6B7680",
+                        bg=BTN_GHOST if ghost else BTN_DARK,
+                        fg="#4A4A4A" if ghost else "#FFFFFF",
+                        activebackground=BTN_GHOST_ACTIVE if ghost else BTN_DARK_ACTIVE,
+                        activeforeground="#333333" if ghost else "#FFFFFF")
+        btn.pack(fill="both", expand=True, padx=(0, 2), pady=(0, 2))
+        return box
 
     def _on_window_configure(self, event=None):
         if event is not None and event.widget is not self:
@@ -1634,13 +1635,10 @@ class App(tk.Tk):
 
     def _on_dir_changed(self, *_):
         self._update_preview()
-        self._cfg["settings"]["out_dir"] = self._dir_var.get().strip(
-        ) or DEFAULT_OUT_DIR
-        self._save_cfg()
+        self._set_setting("out_dir", clean_path(self._dir_var.get()) or DEFAULT_OUT_DIR)
 
     def _on_auto_open_changed(self):
-        self._cfg["settings"]["auto_open"] = self._auto_open_var.get()
-        self._save_cfg()
+        self._set_setting("auto_open", bool(self._auto_open_var.get()))
 
     def _on_text_modified(self, event=None):
         self._text_input.edit_modified(False)
@@ -1696,8 +1694,7 @@ class App(tk.Tk):
         if not paths:
             return
 
-        self._cfg["settings"]["last_open_dir"] = os.path.dirname(paths[-1])
-        self._save_cfg()
+        self._set_setting("last_open_dir", clean_path(os.path.dirname(paths[-1])))
 
         all_text = []
         for path in paths:

@@ -1,0 +1,177 @@
+{
+  "config_version": 1,
+  "settings": {
+    "out_dir": "E:\\陈谨\\Desktop",
+    "last_open_dir": "E:\\陈谨\\Desktop",
+    "auto_open": true,
+    "window_geometry": "960x700+80+40",
+    "window_state": "zoomed"
+  },
+  "operation_categories": [
+    "银证转入",
+    "银证转出",
+    "股票买入",
+    "股票卖出",
+    "基金买入",
+    "基金卖出",
+    "基金申购",
+    "基金赎回",
+    "理财收益",
+    "利息归本",
+    "股息红利",
+    "转债认购",
+    "转债买入",
+    "转债卖出",
+    "红利扣税"
+  ],
+  "operation_rules": [
+    {
+      "id": "type1_buy_stock",
+      "pattern": "买入",
+      "asset_type": "股票",
+      "output_op": "股票买入",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_sell_stock",
+      "pattern": "卖出",
+      "asset_type": "股票",
+      "output_op": "股票卖出",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_buy_fund",
+      "pattern": "买入",
+      "asset_type": "基金",
+      "output_op": "基金买入",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_sell_fund",
+      "pattern": "卖出",
+      "asset_type": "基金",
+      "output_op": "基金卖出",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_buy_cbond",
+      "pattern": "买入",
+      "asset_type": "转债",
+      "output_op": "转债买入",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_sell_cbond",
+      "pattern": "卖出",
+      "asset_type": "转债",
+      "output_op": "转债卖出",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_fund_subscribe",
+      "pattern": "基金申购",
+      "output_op": "基金申购",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_fund_redeem",
+      "pattern": "赎回",
+      "asset_type": "基金",
+      "output_op": "基金赎回",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "contains",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_dividend",
+      "pattern": "红利|股息|派息",
+      "output_op": "股息红利",
+      "source_type": "TYPE1",
+      "enabled": true,
+      "match_type": "regex",
+      "field": "委托类别"
+    },
+    {
+      "id": "type1_cbond_subscribe",
+      "pattern": "缴款",
+      "output_op": "转债认购",
+      "source_type": "TYPE1",
+      "name_contains": "配债",
+      "enabled": true,
+      "match_type": "exact",
+      "field": "委托类别"
+    },
+    {
+      "id": "type2_bank_in",
+      "pattern": "存管.*转入|转入.*存管",
+      "output_op": "银证转入",
+      "source_type": "TYPE2",
+      "enabled": true,
+      "match_type": "regex",
+      "field": "摘要"
+    },
+    {
+      "id": "type2_bank_out",
+      "pattern": "存管.*转出|转出.*存管",
+      "output_op": "银证转出",
+      "source_type": "TYPE2",
+      "enabled": true,
+      "match_type": "regex",
+      "field": "摘要"
+    },
+    {
+      "id": "type2_interest",
+      "pattern": "结息|利息",
+      "output_op": "利息归本",
+      "source_type": "TYPE2",
+      "enabled": true,
+      "match_type": "regex",
+      "field": "摘要"
+    },
+    {
+      "id": "type2_wealth_income",
+      "pattern": "理财收益",
+      "output_op": "理财收益",
+      "source_type": "TYPE2",
+      "enabled": true,
+      "match_type": "contains",
+      "field": "摘要"
+    },
+    {
+      "id": "type2_dividend_tax",
+      "pattern": "红利差别税扣款",
+      "output_op": "红利扣税",
+      "source_type": "TYPE2",
+      "enabled": true,
+      "match_type": "contains",
+      "field": "摘要"
+    }
+  ],
+  "unknown_policy": {
+    "unknown_operation_text": "【待手动维护】",
+    "unknown_security_text": "待确认",
+    "unknown_market_prefix": "??"
+  }
+}
