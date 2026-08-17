@@ -92,13 +92,11 @@ QUANTITY_DIRECTION_BY_OPERATION = {
     "利息归本": QUANTITY_DIRECTION_ZERO,
     "股息红利": QUANTITY_DIRECTION_ZERO,
     "红利扣税": QUANTITY_DIRECTION_ZERO,
-
     "股票买入": QUANTITY_DIRECTION_POSITIVE,
     "基金买入": QUANTITY_DIRECTION_POSITIVE,
     "基金申购": QUANTITY_DIRECTION_POSITIVE,
     "转债认购": QUANTITY_DIRECTION_POSITIVE,
     "转债买入": QUANTITY_DIRECTION_POSITIVE,
-
     "股票卖出": QUANTITY_DIRECTION_NEGATIVE,
     "基金卖出": QUANTITY_DIRECTION_NEGATIVE,
     "基金赎回": QUANTITY_DIRECTION_NEGATIVE,
@@ -350,7 +348,9 @@ SECURITY_PREFIX_RULES = sorted(_SECURITY_PREFIX_RULES_RAW,
 
 
 def program_dir():
-    return os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
+    return os.path.dirname(
+        os.path.abspath(
+            sys.executable if getattr(sys, "frozen", False) else __file__))
 
 
 def _config_path():
@@ -359,7 +359,8 @@ def _config_path():
 
 def clean_path(value):
     s = str(value or "").strip()
-    pairs = [('"', '"'), ("'", "'"), ("\u201c", "\u201d"), ("\u2018", "\u2019")]
+    pairs = [('"', '"'), ("'", "'"), ("\u201c", "\u201d"),
+             ("\u2018", "\u2019")]
     changed = True
     while changed and len(s) >= 2:
         changed = False
@@ -385,7 +386,10 @@ def backup_broken_config(path):
     if os.path.exists(path):
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
-            shutil.copy2(path, os.path.join(os.path.dirname(path), f"TradeCast_config.broken_{stamp}.json"))
+            shutil.copy2(
+                path,
+                os.path.join(os.path.dirname(path),
+                             f"TradeCast_config.broken_{stamp}.json"))
         except Exception:
             pass
 
@@ -433,7 +437,8 @@ def normalize_rule(raw, used_ids):
 def normalize_config(cfg):
     cfg = cfg if isinstance(cfg, dict) else {}
     clean = default_config()
-    src_settings = cfg.get("settings") if isinstance(cfg.get("settings"), dict) else {}
+    src_settings = cfg.get("settings") if isinstance(cfg.get("settings"),
+                                                     dict) else {}
 
     for k, dv in DEFAULT_SETTINGS.items():
         v = src_settings.get(k, dv)
@@ -456,7 +461,8 @@ def normalize_config(cfg):
 
     used = set()
     clean["operation_rules"] = []
-    src_rules = cfg.get("operation_rules") if isinstance(cfg.get("operation_rules"), list) else []
+    src_rules = cfg.get("operation_rules") if isinstance(
+        cfg.get("operation_rules"), list) else []
     for r in src_rules:
         nr = normalize_rule(r, used)
         clean["operation_rules"].append(nr)
@@ -469,8 +475,12 @@ def normalize_config(cfg):
         if r["id"] not in ids:
             clean["operation_rules"].append(normalize_rule(dict(r), used))
 
-    src_policy = cfg.get("unknown_policy") if isinstance(cfg.get("unknown_policy"), dict) else {}
-    clean["unknown_policy"] = {k: str(src_policy.get(k, v) or v) for k, v in DEFAULT_UNKNOWN_POLICY.items()}
+    src_policy = cfg.get("unknown_policy") if isinstance(
+        cfg.get("unknown_policy"), dict) else {}
+    clean["unknown_policy"] = {
+        k: str(src_policy.get(k, v) or v)
+        for k, v in DEFAULT_UNKNOWN_POLICY.items()
+    }
     clean["config_version"] = 1
     return clean
 
@@ -513,6 +523,7 @@ def to_int_qty(val):
     except Exception:
         return 0
 
+
 def resolve_output_quantity(op_key, raw_qty):
     qty_abs = abs(to_int_qty(raw_qty))
     direction = QUANTITY_DIRECTION_BY_OPERATION.get(op_key)
@@ -527,6 +538,7 @@ def resolve_output_quantity(op_key, raw_qty):
         return -qty_abs, ""
 
     return 0, f"操作类别未配置数量方向：{op_key}，成交数量已输出为0"
+
 
 def fmt_date(val):
     s = str(val).strip().replace("-", "").replace("/", "")
@@ -1555,7 +1567,10 @@ class App(tk.Tk):
         self._preview_label.pack(anchor="w", padx=14, pady=(0, 10))
         self._name_var.trace_add("write", lambda *_: self._update_preview())
 
-        self._btn(right, "开始转换  →", self._run, font=("微软雅黑", 11, "bold"),
+        self._btn(right,
+                  "开始转换  →",
+                  self._run,
+                  font=("微软雅黑", 11, "bold"),
                   pady=14).pack(fill="x", pady=(14, 0))
         self._btn(right, "规则维护", self._open_rule_manager,
                   True).pack(fill="x", pady=(10, 0))
@@ -1598,21 +1613,22 @@ class App(tk.Tk):
 
     def _btn(self, parent, text, cmd, ghost=False, font=("微软雅黑", 9), pady=4):
         box = tk.Frame(parent, bg=SHADOW)
-        btn = tk.Button(box,
-                        text=text,
-                        command=cmd,
-                        font=font,
-                        relief="flat",
-                        cursor="hand2",
-                        padx=10,
-                        pady=pady,
-                        bd=0,
-                        highlightthickness=1,
-                        highlightbackground="#FFFFFF" if ghost else "#6B7680",
-                        bg=BTN_GHOST if ghost else BTN_DARK,
-                        fg="#4A4A4A" if ghost else "#FFFFFF",
-                        activebackground=BTN_GHOST_ACTIVE if ghost else BTN_DARK_ACTIVE,
-                        activeforeground="#333333" if ghost else "#FFFFFF")
+        btn = tk.Button(
+            box,
+            text=text,
+            command=cmd,
+            font=font,
+            relief="flat",
+            cursor="hand2",
+            padx=10,
+            pady=pady,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#FFFFFF" if ghost else "#6B7680",
+            bg=BTN_GHOST if ghost else BTN_DARK,
+            fg="#4A4A4A" if ghost else "#FFFFFF",
+            activebackground=BTN_GHOST_ACTIVE if ghost else BTN_DARK_ACTIVE,
+            activeforeground="#333333" if ghost else "#FFFFFF")
         btn.pack(fill="both", expand=True, padx=(0, 2), pady=(0, 2))
         return box
 
@@ -1635,7 +1651,8 @@ class App(tk.Tk):
 
     def _on_dir_changed(self, *_):
         self._update_preview()
-        self._set_setting("out_dir", clean_path(self._dir_var.get()) or DEFAULT_OUT_DIR)
+        self._set_setting("out_dir",
+                          clean_path(self._dir_var.get()) or DEFAULT_OUT_DIR)
 
     def _on_auto_open_changed(self):
         self._set_setting("auto_open", bool(self._auto_open_var.get()))
@@ -1694,7 +1711,8 @@ class App(tk.Tk):
         if not paths:
             return
 
-        self._set_setting("last_open_dir", clean_path(os.path.dirname(paths[-1])))
+        self._set_setting("last_open_dir",
+                          clean_path(os.path.dirname(paths[-1])))
 
         all_text = []
         for path in paths:
