@@ -12,7 +12,7 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-APP_NAME = "TradeCast v1.4.0-20260817"
+APP_NAME = "TradeCast v1.4.1-20260817"
 CONFIG_FILENAME = "TradeCast_config.json"
 
 DEFAULT_OUT_DIR = r""
